@@ -79,6 +79,14 @@ cd ../../..
 Notice:
 If compiling failed, the simplist way is to **Upgrade your pytorch >= 1.1 and torchvision >= 0.3" and you can avoid the troublesome compiling problems which are most likely caused by either `gcc version too low` or `libraries missing`.
 
+5. (Optional) Prepare [fast-reid](https://github.com/JDAI-CV/fast-reid)
+
+This library supports bagtricks, AGW and other mainstream ReID methods through providing an fast-reid adapter.
+
+Run
+
+```
+git submodule update --init --recursive
 5. (Optional) Prepare [MMDetection](https://github.com/open-mmlab/mmdetection)
 
 This library supports Faster R-CNN and other mainstream detection methods through providing an MMDetection adapter.
@@ -89,16 +97,16 @@ Run
 git submodule update --init --recursive
 ```
 
-to prepare our bundled MMDetection, then follow instructions in its README to install it.
+to prepare our bundled fast-reid, then follow instructions in its README to install it.
 
-Please refer to `configs/mmdet.yaml` for a sample of using MMDetection. See [Model Zoo](https://github.com/open-mmlab/mmdetection/blob/master/docs/model_zoo.md) for available methods and trained models.
+Please refer to `configs/fastreid.yaml` for a sample of using fast-reid. See [Model Zoo](https://github.com/JDAI-CV/fast-reid/blob/master/docs/MODEL_ZOO.md) for available methods and trained models.
 
 
 6. Run demo
 ```
 usage: deepsort.py [-h]
-                   [--mmdet]
-                   [--config_mmdetection CONFIG_MMDETECTION]
+                   [--fastreid]
+                   [--config_fastreid CONFIG_FASTREID]
                    [--config_detection CONFIG_DETECTION]
                    [--config_deepsort CONFIG_DEEPSORT] [--display]
                    [--frame_interval FRAME_INTERVAL]
@@ -117,6 +125,10 @@ python deepsort.py [VIDEO_PATH] --config_detection ./configs/yolov3_tiny.yaml
 python3 deepsort.py /dev/video0 --camera 0
 
 # yolov3_tiny + deepsort on webcam
+python3 deepsort.py /dev/video0 --config_detection ./configs/yolov3_tiny.yaml --camera 0
+
+# fast-reid + deepsort
+python deepsort.py [VIDEO_PATH] --fastreid [--config_fastreid ./configs/fastreid.yaml]
 python3 deepsort.py /dev/video0 --config_detection ./configs/yolov3_tiny.yaml --camera 0
 
 # MMDetection + deepsort

@@ -5,6 +5,10 @@ import argparse
 import torch
 import warnings
 import numpy as np
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), 'thirdparty/fast-reid'))
+
 
 from detector import build_detector
 from deep_sort import build_tracker
@@ -133,6 +137,8 @@ def parse_args():
     parser.add_argument("--config_mmdetection", type=str, default="./configs/mmdet.yaml")
     parser.add_argument("--config_detection", type=str, default="./configs/yolov3.yaml")
     parser.add_argument("--config_deepsort", type=str, default="./configs/deep_sort.yaml")
+    parser.add_argument("--config_fastreid", type=str, default="./configs/fastreid.yaml")
+    parser.add_argument("--fastreid", action="store_true")
     parser.add_argument("--mmdet", action="store_true")
     # parser.add_argument("--ignore_display", dest="display", action="store_false", default=True)
     parser.add_argument("--display", action="store_true")
@@ -155,6 +161,11 @@ if __name__ == "__main__":
         cfg.merge_from_file(args.config_detection)
         cfg.USE_MMDET = False
     cfg.merge_from_file(args.config_deepsort)
+    if args.fastreid:
+        cfg.merge_from_file(args.config_fastreid)
+        cfg.USE_FASTREID = True
+    else:
+        cfg.USE_FASTREID = False
 
     with VideoTracker(cfg, args, video_path=args.VIDEO_PATH) as vdo_trk:
         vdo_trk.run()
