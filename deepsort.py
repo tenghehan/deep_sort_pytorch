@@ -5,6 +5,7 @@ import argparse
 import torch
 import warnings
 import numpy as np
+import traceback
 import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'thirdparty/fast-reid'))
@@ -23,6 +24,8 @@ class VideoTracker(object):
         self.cfg = cfg
         self.args = args
         self.video_path = video_path
+        self.video_frames = None
+        self.idx_frame = 0
         self.logger = get_logger("root")
 
         use_cuda = args.use_cuda and torch.cuda.is_available()
@@ -49,12 +52,39 @@ class VideoTracker(object):
             self.im_width = frame.shape[0]
             self.im_height = frame.shape[1]
 
-        else:
-            assert os.path.isfile(self.video_path), "Path error"
+        elif os.path.isfile(self.video_path):
             self.vdo.open(self.video_path)
             self.im_width = int(self.vdo.get(cv2.CAP_PROP_FRAME_WIDTH))
             self.im_height = int(self.vdo.get(cv2.CAP_PROP_FRAME_HEIGHT))
             assert self.vdo.isOpened()
+            self.next_frame = self.vdo.retrieve
+            self.has_next = self.vdo.grab
+        elif os.path.isdir(self.video_path):
+            accepted_image_extensions = ["jpg", "jpeg", "png"]
+            assert (
+                len(os.listdir(self.video_path)) > 0
+            ), f"{os.path.abspath(self.video_path)} is empty."
+            self.video_frames = [
+                filename
+                for filename in os.listdir(self.video_path)
+                if filename.split(".")[-1].lower() in accepted_image_extensions
+            ]
+            assert (
+                len(self.video_frames) > 0
+            ), f"Expected images of types {accepted_image_extensions}, \
+            but only found files with extensions \
+            {set([filename.split('.')[-1] for filename in os.listdir(self.video_files)])}"
+            try:
+                self.im_height, self.im_width, _ = cv2.imread(
+                    os.path.join(self.video_path, self.video_frames[0])
+                ).shape
+            except Exception as e:
+                print(e)
+                raise IOError(
+                    f"Could not find image files at {os.path.abspath(self.video_path)}. {e}. {traceback.print_stack()}"
+                )
+        else:
+            raise IOError(f"Could not process input {os.path.abspath(self.video_path)}")
 
         if self.args.save_path:
             os.makedirs(self.args.save_path, exist_ok=True)
@@ -76,16 +106,26 @@ class VideoTracker(object):
         if exc_type:
             print(exc_type, exc_value, exc_traceback)
 
+    # is replaced when video_path is a file and not a directory of images
+    def next_frame(self):
+        image = cv2.imread(
+            os.path.join(self.video_path, self.video_frames[self.idx_frame])
+        )
+        self.idx_frame += 1
+        return self.idx_frame - 1, image
+
+    def has_next(self):
+        return self.idx_frame < len(self.video_frames)
+
     def run(self):
         results = []
-        idx_frame = 0
-        while self.vdo.grab():
-            idx_frame += 1
-            if idx_frame % self.args.frame_interval:
+        self.idx_frame = 0
+        while self.has_next():
+            if self.idx_frame % self.args.frame_interval:
                 continue
 
             start = time.time()
-            _, ori_im = self.vdo.retrieve()
+            _, ori_im = self.next_frame()
             im = cv2.cvtColor(ori_im, cv2.COLOR_BGR2RGB)
 
             # do detection
@@ -112,7 +152,7 @@ class VideoTracker(object):
                 for bb_xyxy in bbox_xyxy:
                     bbox_tlwh.append(self.deepsort._xyxy_to_tlwh(bb_xyxy))
 
-                results.append((idx_frame - 1, bbox_tlwh, identities))
+                results.append((self.idx_frame - 1, bbox_tlwh, identities))
 
             end = time.time()
 
